@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TCP/IP Network Stack Simulator</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🌐 TCP/IP Network Stack Simulator</h1>
+        
+        <div class="controls">
+            <button onclick="initializeConnection()" id="initBtn">Initialize Connection</button>
+            <button onclick="sendData()" id="sendBtn" disabled>Send Data</button>
+            <button onclick="simulatePacketLoss()" id="lossBtn" disabled>Simulate Packet Loss</button>
+            <button onclick="simulateCongestion()" id="congBtn" disabled>Simulate Congestion</button>
+            <button onclick="resetSimulation()">Reset</button>
+        </div>
+
+        <div class="status-panel" id="connectionStatus">
+            Connection Status: Not Initialized
+        </div>
+
+        <div class="network-stack">
+            <div class="sender-stack">
+                <h3 style="color: #ff6b6b; text-align: center;">📤 SENDER STACK</h3>
+                
+                <div class="layer application" id="senderApp">
+                    <div class="layer-header">
+                        <span>🌐 Application Layer (HTTP)</span>
+                        <span id="appStatus">Ready</span>
+                    </div>
+                    <div class="layer-content">
+                        <div>Original Data:</div>
+                        <div class="bit-display ascii-display" id="originalData">GET /index.html HTTP/1.1\r\nHost: example.com\r\nUser-Agent: NetworkSim/1.0\r\n\r\n</div>
+                        <div class="header-breakdown" id="httpHeaders"></div>
+                    </div>
+                </div>
+
+                <div class="layer transport" id="senderTCP">
+                    <div class="layer-header">
+                        <span>🚚 Transport Layer (TCP)</span>
+                        <span id="tcpStatus">CLOSED</span>
+                    </div>
+                    <div class="layer-content">
+                        <div>TCP Header + Data (Hex):</div>
+                        <div class="bit-display hex-display" id="tcpFrame"></div>
+                        <div class="header-breakdown" id="tcpHeaders"></div>
+                        <div class="checksum-calc" id="tcpChecksumStatus">TCP Checksum: N/A</div>
+                        <div class="congestion-window" id="senderCongestionWindow">
+                            Congestion Window (CWND): 1 MSS | SSThresh: 64 MSS
+                        </div>
+                    </div>
+                </div>
+
+                <div class="layer network" id="senderIP">
+                    <div class="layer-header">
+                        <span>🌍 Network Layer (IP)</span>
+                        <span id="ipStatus">Ready</span>
+                    </div>
+                    <div class="layer-content">
+                        <div>IP Header + TCP Segment (Hex):</div>
+                        <div class="bit-display hex-display" id="ipPacket"></div>
+                        <div class="header-breakdown" id="ipHeaders"></div>
+                        <div class="checksum-calc" id="ipChecksumStatus">IP Checksum: N/A</div>
+                    </div>
+                </div>
+
+                <div class="layer datalink" id="senderEth">
+                    <div class="layer-header">
+                        <span>🔗 Data Link Layer (Ethernet)</span>
+                        <span id="ethStatus">Ready</span>
+                    </div>
+                    <div class="layer-content">
+                        <div>Ethernet Frame (Hex):</div>
+                        <div class="bit-display hex-display" id="ethFrame"></div>
+                        <div class="header-breakdown" id="ethHeaders"></div>
+                        <div class="checksum-calc" id="ethChecksumStatus">Ethernet FCS: N/A</div>
+                    </div>
+                </div>
+
+                <div class="layer physical" id="senderPhy">
+                    <div class="layer-header">
+                        <span>⚡ Physical Layer</span>
+                        <span id="phyStatus">Idle</span>
+                    </div>
+                    <div class="layer-content">
+                        <div>Manchester Encoded Bits (Sample):</div>
+                        <div class="bit-display binary-display" id="physicalBits"></div>
+                        <div class="bandwidth-monitor">
+                            <span>Bandwidth: 1 Gbps</span>
+                            <span>Signal: Strong</span>
+                            <span>Errors: 0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="receiver-stack">
+                <h3 style="color: #4ecdc4; text-align: center;">📥 RECEIVER STACK</h3>
+                
+                <div class="layer physical" id="receiverPhy">
+                    <div class="layer-header">
+                        <span>⚡ Physical Layer</span>
+                        <span id="rxPhyStatus">Listening</span>
+                    </div>
+                    <div class="layer-content">
+                        <div>Received Bits (Sample):</div>
+                        <div class="bit-display binary-display" id="rxPhysicalBits">Waiting for transmission...</div>
+                        <div class="bandwidth-monitor">
+                            <span>Sync: N/A</span>
+                            <span>BER: N/A</span>
+                            <span>SNR: N/A</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="layer datalink" id="receiverEth">
+                    <div class="layer-header">
+                        <span>🔗 Data Link Layer (Ethernet)</span>
+                        <span id="rxEthStatus">Ready</span>
+                    </div>
+                    <div class="layer-content">
+                        <div>Decapsulated Frame (Hex):</div>
+                        <div class="bit-display hex-display" id="rxEthFrame">Waiting for frame...</div>
+                        <div class="header-breakdown" id="rxEthHeaders"></div>
+                        <div class="checksum-calc" id="rxEthChecksumStatus">Ethernet FCS Check: N/A</div>
+                    </div>
+                </div>
+
+                <div class="layer network" id="receiverIP">
+                    <div class="layer-header">
+                        <span>🌍 Network Layer (IP)</span>
+                        <span id="rxIpStatus">Ready</span>
+                    </div>
+                    <div class="layer-content">
+                        <div>Decapsulated Packet (Hex):</div>
+                        <div class="bit-display hex-display" id="rxIpPacket">Waiting for packet...</div>
+                        <div class="header-breakdown" id="rxIpHeaders"></div>
+                        <div class="checksum-calc" id="rxIpChecksumStatus">IP Checksum Check: N/A</div>
+                    </div>
+                </div>
+
+                <div class="layer transport" id="receiverTCP">
+                    <div class="layer-header">
+                        <span>🚚 Transport Layer (TCP)</span>
+                        <span id="rxTcpStatus">CLOSED</span>
+                    </div>
+                    <div class="layer-content">
+                        <div>Decapsulated Segment (Hex):</div>
+                        <div class="bit-display hex-display" id="rxTcpFrame">Waiting for segment...</div>
+                        <div class="header-breakdown" id="rxTcpHeaders"></div>
+                         <div class="checksum-calc" id="rxTcpChecksumStatus">TCP Checksum Check: N/A</div>
+                        <div class="congestion-window" id="receiverCongestionWindow">
+                            Receive Window (RWND): 65535 bytes | Buffer: Available
+                        </div>
+                    </div>
+                </div>
+
+                <div class="layer application" id="receiverApp">
+                    <div class="layer-header">
+                        <span>🌐 Application Layer (HTTP)</span>
+                        <span id="rxAppStatus">Waiting</span>
+                    </div>
+                    <div class="layer-content">
+                        <div>Reconstructed Data:</div>
+                        <div class="bit-display ascii-display" id="rxOriginalData">Waiting for application data...</div>
+                        <div class="header-breakdown" id="rxHttpHeaders"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="transmission-path">
+            <h4 style="color: #000; margin: 0 0 10px 0;">🌐 Network Transmission Path</h4>
+            <div class="packet-visualization">
+                <div class="moving-packet" id="movingPacket" style="display: none;">PKT</div>
+            </div>
+            <div style="color: #000; font-size: 12px;">
+                Sender NIC → Switch → Router → ISP → Internet Backbone → Dest. ISP → Dest. Router → Switch → Receiver NIC
+            </div>
+        </div>
+
+        <div class="protocol-details">
+            <div class="detail-panel">
+                <h4 style="color: #e74c3c;">🔄 TCP Connection State</h4>
+                <div id="tcpStateDisplay" style="font-size:11px; line-height:1.5;">
+                    State: CLOSED<br>
+                    Client Seq: 0 | Client Ack: 0<br>
+                    Server Seq: 0 | Server Ack: 0<br>
+                    CWND: 1 MSS | SSThresh: 64 MSS
+                </div>
+            </div>
+            <div class="detail-panel">
+                <h4 style="color: #3498db;">📊 Network Statistics</h4>
+                <div id="networkStats" style="font-size:11px; line-height:1.5;">
+                    Packets Sent: 0<br>
+                    Packets Received: 0<br>
+                    Data Packets Lost: 0<br>
+                    Retransmissions: 0<br>
+                    Simulated RTT: 50ms
+                </div>
+            </div>
+            <div class="detail-panel">
+                <h4 style="color: #2ecc71;">🔧 Protocol Analysis</h4>
+                <div id="protocolAnalysis" style="font-size:11px; line-height:1.5;">
+                    Total Data Sent (App): 0 bytes<br>
+                    Total Overhead: 0 bytes<br>
+                    Efficiency: 0%<br>
+                    Effective Throughput: 0 bps
+                </div>
+            </div>
+        </div>
+
+        <div class="sequence-diagram"> <!-- Changed to log display -->
+            <h4 style="text-align:center;">📜 Event Log / Sequence Diagram</h4>
+            <div class="log-display" id="sequenceLog">
+                <div class="log-entry log-sys"><span class="timestamp"></span>System ready - Initialize connection to begin</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/main.js"></script>
+</body>
+</html>
